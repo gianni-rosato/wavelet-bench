@@ -1,0 +1,7 @@
+[project]
+name = "wavelet-bench"
+version = "0.1.0"
+description = "Benchmark wavelet-based video codecs"
+readme = "README.md"
+requires-python = ">=3.13.2"
+dependencies = []
