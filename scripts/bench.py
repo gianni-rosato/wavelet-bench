@@ -261,6 +261,7 @@ class VideoEnc:
                 "dsv2",
                 "e",
                 "-inp=-",
+                "-y4m=1",
                 f"-out={self.dst_pth}",
                 f"-qp={self.q}",
                 "-y",
