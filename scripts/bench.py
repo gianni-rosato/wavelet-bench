@@ -257,11 +257,10 @@ class VideoEnc:
             if self.encoder_args != [""]:
                 enc_cmd.extend(self.encoder_args)
         elif self.encoder == "dsv2":
-            y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_temp.y4m"
             enc_cmd = [
                 "dsv2",
                 "e",
-                f"-inp={y4m_path}",
+                "-inp=-",
                 f"-out={self.dst_pth}",
                 f"-qp={self.q}",
                 "-y",
@@ -271,7 +270,7 @@ class VideoEnc:
             dec_y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_decoded.y4m"
             dec_pth = dec_y4m_path
 
-        if self.encoder not in ["snow", "dsv2"]:
+        if self.encoder not in ["snow"]:
             ff_cmd = [
                 "ffmpeg",
                 "-hide_banner",
@@ -287,22 +286,6 @@ class VideoEnc:
                 "-f",
                 "yuv4mpegpipe",
                 "-",
-            ]
-        elif self.encoder == "dsv2":
-            y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_temp.y4m"
-            ff_cmd = [
-                "ffmpeg",
-                "-hide_banner",
-                "-y",
-                "-loglevel",
-                "error",
-                "-i",
-                f"{self.src.path}",
-                "-pix_fmt",
-                "yuv420p",
-                "-f",
-                "yuv4mpegpipe",
-                y4m_path,
             ]
         else:
             ff_cmd = [
@@ -326,18 +309,16 @@ class VideoEnc:
 
         print(f"Encoding video at Q{self.q} with {self.encoder} ...")
         if self.encoder == "dsv2":
-            y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_temp.y4m"
             dec_y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_decoded.y4m"
-            start_time: float = time.time()
             ff_proc: Popen[str] = subprocess.Popen(
                 ff_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                universal_newlines=True,
             )
-            _, ff_stderr = ff_proc.communicate()
+            start_time: float = time.time()
             enc_proc: Popen[str] = subprocess.Popen(
                 enc_cmd,
+                stdin=ff_proc.stdout,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 universal_newlines=True,
@@ -360,9 +341,6 @@ class VideoEnc:
             _, dec_stderr = dec_proc.communicate()
             encode_time: float = time.time() - start_time
             self.time = encode_time
-            if os.path.exists(y4m_path):
-                os.remove(y4m_path)
-            print(ff_stderr)
             print(enc_stderr)
             print(dec_stderr)
             dec_pth = dec_y4m_path
