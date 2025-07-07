@@ -256,8 +256,22 @@ class VideoEnc:
             dec_pth = self.dst_pth
             if self.encoder_args != [""]:
                 enc_cmd.extend(self.encoder_args)
+        elif self.encoder == "dsv2":
+            y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_temp.y4m"
+            enc_cmd = [
+                "dsv2",
+                "e",
+                f"-inp={y4m_path}",
+                f"-out={self.dst_pth}",
+                f"-qp={self.q}",
+                "-y",
+            ]
+            if self.encoder_args != [""]:
+                enc_cmd.extend(self.encoder_args)
+            dec_y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_decoded.y4m"
+            dec_pth = dec_y4m_path
 
-        if self.encoder != "snow":
+        if self.encoder not in ["snow", "dsv2"]:
             ff_cmd = [
                 "ffmpeg",
                 "-hide_banner",
@@ -273,6 +287,22 @@ class VideoEnc:
                 "-f",
                 "yuv4mpegpipe",
                 "-",
+            ]
+        elif self.encoder == "dsv2":
+            y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_temp.y4m"
+            ff_cmd = [
+                "ffmpeg",
+                "-hide_banner",
+                "-y",
+                "-loglevel",
+                "error",
+                "-i",
+                f"{self.src.path}",
+                "-pix_fmt",
+                "yuv420p",
+                "-f",
+                "yuv4mpegpipe",
+                y4m_path,
             ]
         else:
             ff_cmd = [
@@ -295,8 +325,49 @@ class VideoEnc:
                 ff_cmd.extend(self.encoder_args)
 
         print(f"Encoding video at Q{self.q} with {self.encoder} ...")
-        if self.encoder != "snow":
-            ff_proc: Popen[bytes] = subprocess.Popen(
+        if self.encoder == "dsv2":
+            y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_temp.y4m"
+            dec_y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_decoded.y4m"
+            start_time: float = time.time()
+            ff_proc: Popen[str] = subprocess.Popen(
+                ff_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            _, ff_stderr = ff_proc.communicate()
+            enc_proc: Popen[str] = subprocess.Popen(
+                enc_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            _, enc_stderr = enc_proc.communicate()
+            dec_cmd = [
+                "dsv2",
+                "d",
+                f"-inp={self.dst_pth}",
+                f"-out={dec_y4m_path}",
+                "-y4m=1",
+                "-y",
+            ]
+            dec_proc: Popen[str] = subprocess.Popen(
+                dec_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+            )
+            _, dec_stderr = dec_proc.communicate()
+            encode_time: float = time.time() - start_time
+            self.time = encode_time
+            if os.path.exists(y4m_path):
+                os.remove(y4m_path)
+            print(ff_stderr)
+            print(enc_stderr)
+            print(dec_stderr)
+            dec_pth = dec_y4m_path
+        elif self.encoder != "snow":
+            ff_proc: Popen[str] = subprocess.Popen(
                 ff_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -334,6 +405,10 @@ class VideoEnc:
         Remove the output file.
         """
         os.remove(self.dst_pth)
+        if self.encoder == "dsv2":
+            dec_y4m_path = f"{os.path.splitext(self.dst_pth)[0]}_decoded.y4m"
+            if os.path.exists(dec_y4m_path):
+                os.remove(dec_y4m_path)
 
 
 def psnr_to_mse(p: float, m: int) -> float:

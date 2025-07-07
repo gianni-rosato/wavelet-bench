@@ -8,7 +8,7 @@ Wavelet Bench is a benchmarking toolkit designed to evaluate the performance of 
 
 ## TODO
 
-- [ ] DSV2 support
+- [x] DSV2 support
 - [ ] Dirac support
 - [x] x264 support
 - [x] Snow support
