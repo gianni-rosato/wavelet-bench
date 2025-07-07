@@ -180,3 +180,5 @@ cython_debug/
 *.dsv
 *.mkv
 *.sh
+*.y4m
+.DS_Store
